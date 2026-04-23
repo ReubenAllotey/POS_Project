@@ -1,0 +1,238 @@
+<%- include('../partials/header', { title: "Mobile Money Authorization" }) %>
+<%- include('../partials/sidebar') %>
+
+<div class="main">
+  <%- include('../partials/navbarPos', { pageTitle }) %>
+
+  <div class="dashboard">
+    <div class="card receipt-card">
+      <h2>Mobile Money Authorization</h2>
+      <p id="momoSummary">Preparing authorization...</p>
+      <p id="momoPageMessage" class="page-message"></p>
+
+      <div id="momoAuthBox" class="card" style="margin-top: 16px; display: none;">
+        <h4 id="momoAuthTitle">Authorization Step</h4>
+        <p id="momoAuthMessage">Waiting for next step...</p>
+
+        <div id="momoInputArea">
+          <input id="momoAuthValue" type="text" placeholder="Enter code" />
+          <div class="modal-actions" style="justify-content: flex-start; margin-top: 12px;">
+            <button id="momoAuthSubmitBtn" class="save-btn" style="width: auto;" onclick="submitMomoAuthStep()">Submit</button>
+            <button class="cancel-btn" style="width: auto;" onclick="cancelMomoFlow()">Cancel</button>
+          </div>
+        </div>
+
+        <div id="momoPendingArea" style="display: none;">
+          <p style="color: var(--muted); font-size: 14px;">
+            The payment has been submitted to Mobile Money.
+            This page will update automatically once confirmation is received.
+          </p>
+          <div class="modal-actions" style="justify-content: flex-start; margin-top: 12px;">
+            <button class="cancel-btn" style="width: auto;" onclick="cancelMomoFlow()">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let momoDraft = null;
+  let momoState = { reference: "", nextAction: "", message: "" };
+  let pollInterval = null;
+  let isSubmitting = false;
+
+  const pageMessage = document.getElementById("momoPageMessage");
+  const momoSummary = document.getElementById("momoSummary");
+  const momoAuthBox = document.getElementById("momoAuthBox");
+  const momoAuthTitle = document.getElementById("momoAuthTitle");
+  const momoAuthMessage = document.getElementById("momoAuthMessage");
+  const momoAuthValue = document.getElementById("momoAuthValue");
+  const momoAuthSubmitBtn = document.getElementById("momoAuthSubmitBtn");
+  const momoInputArea = document.getElementById("momoInputArea");
+  const momoPendingArea = document.getElementById("momoPendingArea");
+
+  function showMessage(message, isError = false) {
+    pageMessage.textContent = message;
+    pageMessage.className = isError ? "page-message error" : "page-message success";
+  }
+
+  function startPolling() {
+    stopPolling();
+    pollInterval = setInterval(async () => {
+      await pollChargeStatus();
+    }, 5000);
+  }
+
+  function stopPolling() {
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+  }
+
+  async function pollChargeStatus() {
+    if (!momoState.reference) return;
+
+    try {
+      const response = await fetch(
+        `/api/payments/paystack/momo/check/${encodeURIComponent(momoState.reference)}`
+      );
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) return; // silently retry on error
+
+      handleMomoResponse(data);
+    } catch {
+      // network error — just retry on next tick
+    }
+  }
+
+  function loadState() {
+    try {
+      momoDraft = JSON.parse(sessionStorage.getItem("momoCheckoutDraft") || "null");
+    } catch {
+      momoDraft = null;
+    }
+
+    try {
+      momoState = JSON.parse(sessionStorage.getItem("momoAuthorizationState") || "null") || momoState;
+    } catch {
+      momoState = { reference: "", nextAction: "", message: "" };
+    }
+
+    if (!momoDraft || !Array.isArray(momoDraft.items) || momoDraft.items.length === 0) {
+      showMessage("No mobile money checkout draft was found. Start again from the POS screen.", true);
+      return false;
+    }
+
+    if (!momoState.reference || !momoState.nextAction) {
+      showMessage("No mobile money authorization step was found. Start again from the mobile money screen.", true);
+      return false;
+    }
+
+    momoSummary.textContent = `Total: GHS ${Number(momoDraft.grossTotal || 0).toFixed(2)} | Discount: ${Number(momoDraft.discountPercent || 0).toFixed(2)}% | Payable: GHS ${Number((momoDraft.grossTotal || 0) - (momoDraft.discountAmount || 0)).toFixed(2)}`;
+
+    momoAuthBox.style.display = "block";
+    renderStep();
+    return true;
+  }
+
+  function persistAuthorizationState(data) {
+    momoState = {
+      reference: data.reference || momoState.reference,
+      nextAction: data.nextAction || momoState.nextAction,
+      message: data.message || "",
+    };
+    sessionStorage.setItem("momoAuthorizationState", JSON.stringify(momoState));
+  }
+
+  function renderStep() {
+    stopPolling();
+    momoAuthValue.value = "";
+    momoAuthValue.type = "text";
+
+    if (momoState.nextAction === "send_otp") {
+      // OTP step: cashier types what the customer received on their phone
+      momoInputArea.style.display = "block";
+      momoPendingArea.style.display = "none";
+      momoAuthTitle.textContent = "Enter Customer OTP";
+      momoAuthMessage.textContent = momoState.message || "An OTP has been sent to the customer's phone. Ask the customer for the code and enter it below.";
+      momoAuthValue.placeholder = "Enter OTP";
+      momoAuthSubmitBtn.textContent = "Submit OTP";
+      momoAuthSubmitBtn.disabled = false;
+      showMessage("OTP sent to customer's phone. Waiting for customer to share it.");
+
+    } else if (momoState.nextAction === "send_phone") {
+      // Rare: Paystack needs phone confirmation
+      momoInputArea.style.display = "block";
+      momoPendingArea.style.display = "none";
+      momoAuthTitle.textContent = "Confirm Phone Number";
+      momoAuthMessage.textContent = momoState.message || "Enter the customer's phone number to confirm.";
+      momoAuthValue.placeholder = "Enter phone number";
+      momoAuthSubmitBtn.textContent = "Submit Number";
+      momoAuthSubmitBtn.disabled = false;
+      showMessage("Phone number confirmation required.");
+
+    } else {
+      // pending — MTN has sent the PIN prompt directly to the customer's phone.
+      // We just poll until they approve.
+      momoInputArea.style.display = "none";
+      momoPendingArea.style.display = "block";
+      momoAuthTitle.textContent = "Waiting for Customer Approval";
+      momoAuthMessage.textContent = momoState.message || "Waiting for payment confirmation from the mobile money provider.";
+      showMessage(momoState.message || "Waiting for payment confirmation...");
+      startPolling();
+    }
+  }
+
+  function cancelMomoFlow() {
+    stopPolling();
+    sessionStorage.removeItem("momoAuthorizationState");
+    window.location.href = "/pos/momo";
+  }
+
+  function handleMomoResponse(data) {
+    if (data.nextAction === "success") {
+      stopPolling();
+      sessionStorage.removeItem("momoCheckoutDraft");
+      sessionStorage.removeItem("momoAuthorizationState");
+      window.location.href = data.redirectUrl;
+      return;
+    }
+
+    persistAuthorizationState(data);
+    renderStep();
+  }
+
+  async function submitMomoAuthStep() {
+    if (isSubmitting) return;
+
+    if (!momoState.reference || !momoState.nextAction) {
+      showMessage("No active mobile money authorization step.", true);
+      return;
+    }
+
+    const value = momoAuthValue.value.trim();
+    if (!value) {
+      showMessage("Enter the required value first.", true);
+      return;
+    }
+
+    isSubmitting = true;
+    momoAuthSubmitBtn.disabled = true;
+    momoAuthSubmitBtn.textContent = "Submitting...";
+    showMessage("Submitting, please wait...");
+
+    try {
+      const response = await fetch("/api/payments/paystack/momo/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reference: momoState.reference,
+          action: momoState.nextAction,
+          value,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        showMessage(data.error || "Unable to submit authorization.", true);
+        momoAuthSubmitBtn.disabled = false;
+        momoAuthSubmitBtn.textContent = momoState.nextAction === "send_otp" ? "Submit OTP" : "Submit";
+        return;
+      }
+
+      handleMomoResponse(data);
+    } finally {
+      isSubmitting = false;
+    }
+  }
+
+  window.addEventListener("beforeunload", stopPolling);
+
+  loadState();
+</script>
+
+<%- include('../partials/footer') %>

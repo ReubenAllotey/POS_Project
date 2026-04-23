@@ -1,0 +1,308 @@
+<%- include('../partials/header', { title: "Point Of Sale" }) %>
+<%- include('../partials/sidebar') %>
+
+<div class="main">
+  <%- include('../partials/navbarPos', { pageTitle }) %>
+
+  <div class="pos">
+    <div class="products">
+      <div class="products-search">
+        <input type="text" id="search" placeholder="Search Product" />
+        <input type="text" id="barcode" placeholder="Scan Barcode" />
+      </div>
+
+      <div class="toolbar">
+        <select id="customerId">
+          <option value="">Walk-in Customer</option>
+          <% customers.forEach((customer) => { %>
+            <option value="<%= customer.id %>"><%= customer.name %></option>
+          <% }) %>
+        </select>
+
+        <select id="paymentMethod">
+          <option value="cash">Cash</option>
+          <option value="card">Card</option>
+          <option value="mobile-money">Mobile Money</option>
+        </select>
+      </div>
+
+      <div class="product-grid" id="productGrid"></div>
+    </div>
+
+    <div class="cart">
+      <h3>Current Sale</h3>
+
+      <table id="cartTable">
+        <tr>
+          <th>Item</th>
+          <th>Qty</th>
+          <th>Price</th>
+          <th>Remove</th>
+        </tr>
+      </table>
+
+      <label for="amountPaid">Amount Paid</label>
+      <input id="amountPaid" type="number" min="0" step="0.01" placeholder="0.00" />
+
+      <label for="discountPercent">Discount (%)</label>
+      <input id="discountPercent" type="number" min="0" max="100" step="0.01" placeholder="0" />
+
+      <p id="pageMessage" class="page-message"></p>
+      <p>Gross Total: GHS <span id="grossTotal">0.00</span></p>
+      <p>Discount: <span id="discountPercentDisplay">0.00</span>% (GHS <span id="discountDisplay">0.00</span>)</p>
+      <h3>Total: GHS <span id="total">0.00</span></h3>
+
+      <button class="checkout-btn" onclick="checkout()">Checkout</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let products = <%- JSON.stringify(products) %>;
+  let customers = <%- JSON.stringify(customers) %>;
+  let cart = [];
+  const pageMessage = document.getElementById("pageMessage");
+  const fallbackCustomerEmail = <%- JSON.stringify(currentUser?.email || "") %>;
+
+  function showMessage(message, isError = false) {
+    pageMessage.textContent = message;
+    pageMessage.className = isError ? "page-message error" : "page-message success";
+  }
+
+  function displayProducts(list) {
+    const grid = document.getElementById("productGrid");
+    grid.innerHTML = "";
+
+    list.forEach((product) => {
+      grid.innerHTML += `
+        <div class="product">
+          <h4>${product.name}</h4>
+          <p>GHS ${Number(product.price).toFixed(2)}</p>
+          <small>${product.stock} in stock</small>
+          <button onclick="addToCart('${product.barcode}')" class="add-btn">Add</button>
+        </div>
+      `;
+    });
+  }
+
+  function addToCart(barcode) {
+    const product = products.find((item) => item.barcode === barcode);
+    if (!product) {
+      showMessage("Product not found.", true);
+      return;
+    }
+
+    if (product.stock <= 0) {
+      showMessage(`${product.name} is out of stock.`, true);
+      return;
+    }
+
+    const existing = cart.find((item) => item.productId === product.id);
+    if (existing) {
+      if (existing.qty >= product.stock) {
+        showMessage(`Only ${product.stock} ${product.name} available.`, true);
+        return;
+      }
+
+      existing.qty += 1;
+    } else {
+      cart.push({
+        productId: product.id,
+        barcode: product.barcode,
+        name: product.name,
+        price: Number(product.price),
+        qty: 1,
+      });
+    }
+
+    renderCart();
+  }
+
+  function renderCart() {
+    const table = document.getElementById("cartTable");
+    table.innerHTML = `
+      <tr>
+        <th>Item</th>
+        <th>Qty</th>
+        <th>Price</th>
+        <th>Remove</th>
+      </tr>
+    `;
+
+    let grossTotal = 0;
+    const discountPercent = Number(document.getElementById("discountPercent").value || 0);
+
+    cart.forEach((item, index) => {
+      grossTotal += item.price * item.qty;
+      table.innerHTML += `
+        <tr>
+          <td>${item.name}</td>
+          <td>
+            <button class="qty-btn" onclick="decreaseQty(${index})">-</button>
+            ${item.qty}
+            <button class="qty-btn" onclick="increaseQty(${index})">+</button>
+          </td>
+          <td>${(item.price * item.qty).toFixed(2)}</td>
+          <td><span class="remove-btn" onclick="removeItem(${index})">X</span></td>
+        </tr>
+      `;
+    });
+
+    const normalizedPercent = Math.min(Math.max(discountPercent, 0), 100);
+    const normalizedDiscount = Number(((grossTotal * normalizedPercent) / 100).toFixed(2));
+    const total = grossTotal - normalizedDiscount;
+
+    document.getElementById("grossTotal").innerText = grossTotal.toFixed(2);
+    document.getElementById("discountPercentDisplay").innerText = normalizedPercent.toFixed(2);
+    document.getElementById("discountDisplay").innerText = normalizedDiscount.toFixed(2);
+    document.getElementById("total").innerText = total.toFixed(2);
+  }
+
+  function increaseQty(index) {
+    const cartItem = cart[index];
+    const product = products.find((item) => item.id === cartItem.productId);
+
+    if (cartItem.qty >= product.stock) {
+      showMessage(`Only ${product.stock} ${product.name} available.`, true);
+      return;
+    }
+
+    cartItem.qty += 1;
+    renderCart();
+  }
+
+  function decreaseQty(index) {
+    cart[index].qty -= 1;
+    if (cart[index].qty <= 0) {
+      cart.splice(index, 1);
+    }
+
+    renderCart();
+  }
+
+  function removeItem(index) {
+    cart.splice(index, 1);
+    renderCart();
+  }
+
+  async function checkout() {
+    if (cart.length === 0) {
+      showMessage("Add at least one item before checkout.", true);
+      return;
+    }
+
+    const paymentMethod = document.getElementById("paymentMethod").value;
+    const selectedCustomerId = Number(document.getElementById("customerId").value || 0);
+    const selectedCustomer = customers.find((item) => item.id === selectedCustomerId);
+    const grossTotal = Number(document.getElementById("grossTotal").innerText || 0);
+    const discountPercent = Math.min(
+      Math.max(Number(document.getElementById("discountPercent").value || 0), 0),
+      100,
+    );
+    const discountAmount = Number(((grossTotal * discountPercent) / 100).toFixed(2));
+
+    if (paymentMethod === "card" && !selectedCustomer) {
+      showMessage("Select a registered customer for card checkout.", true);
+      return;
+    }
+
+    if (paymentMethod === "card" && !selectedCustomer?.email) {
+      showMessage("The selected customer must have an email address.", true);
+      return;
+    }
+
+    const payload = {
+      customerId: selectedCustomerId || null,
+      paymentMethod,
+      amountPaid: Number(document.getElementById("amountPaid").value || 0),
+      discountAmount,
+      customerPhone: selectedCustomer?.phone || "",
+      customerEmail: selectedCustomer?.email || fallbackCustomerEmail,
+      momoProvider: "mtn",
+      items: cart.map((item) => ({
+        productId: item.productId,
+        quantity: item.qty,
+      })),
+      cartDisplay: cart,
+      grossTotal,
+      discountPercent,
+    };
+
+    const isCard = paymentMethod === "card";
+    const isMomo = paymentMethod === "mobile-money";
+
+    if (isMomo) {
+      sessionStorage.setItem("momoCheckoutDraft", JSON.stringify(payload));
+      window.location.href = "/pos/momo";
+      return;
+    }
+
+    const endpoint = isCard
+      ? "/api/payments/paystack/initialize"
+      : "/api/sales";
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      showMessage(data.error || "Unable to complete checkout.", true);
+      return;
+    }
+
+    if (isCard) {
+      window.location.href = data.authorizationUrl;
+      return;
+    }
+
+    sessionStorage.removeItem("momoCheckoutDraft");
+    window.location.href = data.redirectUrl;
+  }
+
+  function syncPaymentFields() {
+    const paymentMethod = document.getElementById("paymentMethod").value;
+    const amountPaidInput = document.getElementById("amountPaid");
+    const amountPaidLabel = document.querySelector("label[for='amountPaid']");
+
+    const isCash = paymentMethod === "cash";
+    amountPaidInput.disabled = !isCash;
+    amountPaidInput.placeholder = isCash ? "0.00" : "Handled by Paystack";
+    amountPaidLabel.innerText = isCash ? "Amount Paid" : "Amount Paid (Cash only)";
+  }
+
+  document.getElementById("search").addEventListener("input", function () {
+    const keyword = this.value.toLowerCase();
+    const filtered = products.filter((product) =>
+      product.name.toLowerCase().includes(keyword),
+    );
+    displayProducts(filtered);
+  });
+
+  document.getElementById("barcode").addEventListener("change", function () {
+    addToCart(this.value);
+    this.value = "";
+  });
+
+  document.getElementById("paymentMethod").addEventListener("change", syncPaymentFields);
+  document.getElementById("discountPercent").addEventListener("input", renderCart);
+
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get("payment") === "failed") {
+    showMessage("Payment was not completed successfully.", true);
+  } else if (urlParams.get("payment") === "missing_reference") {
+    showMessage("Missing Paystack reference on callback.", true);
+  } else if (urlParams.get("payment") === "unknown_reference") {
+    showMessage("Payment reference could not be matched.", true);
+  } else if (urlParams.get("payment_error")) {
+    showMessage(decodeURIComponent(urlParams.get("payment_error")), true);
+  }
+
+  displayProducts(products);
+  syncPaymentFields();
+  renderCart();
+</script>
+
+<%- include('../partials/footer') %>

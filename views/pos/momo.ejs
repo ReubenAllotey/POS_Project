@@ -1,0 +1,161 @@
+<%- include('../partials/header', { title: "Mobile Money Checkout" }) %>
+<%- include('../partials/sidebar') %>
+
+<div class="main">
+  <%- include('../partials/navbarPos', { pageTitle }) %>
+
+  <div class="dashboard">
+    <div class="card receipt-card">
+      <h2>Mobile Money Checkout</h2>
+      <p id="momoSummary">Preparing mobile money payment...</p>
+
+      <div class="form-group">
+        <label for="momoPhone">Customer Number</label>
+        <input id="momoPhone" type="text" placeholder="Enter customer number" />
+      </div>
+
+      <p id="momoPageMessage" class="page-message"></p>
+
+      <div class="modal-actions" style="justify-content: flex-start;">
+        <button class="save-btn" style="width: auto;" id="startBtn" onclick="startMomoPayment()">Start Payment</button>
+        <button class="cancel-btn" style="width: auto;" onclick="goBackToPos()">Back</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let momoDraft = null;
+
+  const pageMessage = document.getElementById("momoPageMessage");
+  const momoSummary = document.getElementById("momoSummary");
+  const momoPhone = document.getElementById("momoPhone");
+  const startBtn = document.getElementById("startBtn");
+
+  function showMessage(message, isError = false) {
+    pageMessage.textContent = message;
+    pageMessage.className = isError ? "page-message error" : "page-message success";
+  }
+
+  function loadDraft() {
+    try {
+      momoDraft = JSON.parse(sessionStorage.getItem("momoCheckoutDraft") || "null");
+    } catch {
+      momoDraft = null;
+    }
+
+    try {
+      const existingAuthorizationState = JSON.parse(
+        sessionStorage.getItem("momoAuthorizationState") || "null",
+      );
+
+      if (existingAuthorizationState?.reference && existingAuthorizationState?.nextAction) {
+        window.location.href = "/pos/momo/authorize";
+        return false;
+      }
+    } catch {
+      // Ignore malformed authorization state and continue loading the draft.
+    }
+
+    if (!momoDraft || !Array.isArray(momoDraft.items) || momoDraft.items.length === 0) {
+      showMessage("No mobile money checkout draft was found. Start again from the POS screen.", true);
+      startBtn.disabled = true;
+      return false;
+    }
+
+    momoPhone.value = momoDraft.customerPhone || "";
+    momoSummary.textContent = `Total: GHS ${Number(momoDraft.grossTotal || 0).toFixed(2)} | Discount: ${Number(momoDraft.discountPercent || 0).toFixed(2)}% | Payable: GHS ${Number((momoDraft.grossTotal || 0) - (momoDraft.discountAmount || 0)).toFixed(2)}`;
+    return true;
+  }
+
+  function goBackToPos() {
+    window.location.href = "/pos";
+  }
+
+  function persistAuthorizationState(data) {
+    sessionStorage.setItem(
+      "momoAuthorizationState",
+      JSON.stringify({
+        reference: data.reference || "",
+        nextAction: data.nextAction || "",
+        message: data.message || "",
+      }),
+    );
+  }
+
+  function shouldResumeAuthorization(data) {
+    const message = String(data?.error || data?.message || "").toLowerCase();
+    const reference = data?.reference || data?.details?.data?.reference || data?.details?.reference;
+
+    return Boolean(reference) && (
+      message.includes("please complete the authorisation process") ||
+      message.includes("please complete the authorization process") ||
+      message.includes("inputting your pin") ||
+      message.includes("mobile device")
+    );
+  }
+
+  async function startMomoPayment() {
+    if (!momoDraft) {
+      showMessage("No mobile money checkout draft was found.", true);
+      return;
+    }
+
+    const customerPhone = momoPhone.value.trim();
+    if (!customerPhone) {
+      showMessage("Enter the customer number first.", true);
+      return;
+    }
+
+    startBtn.disabled = true;
+    startBtn.textContent = "Starting...";
+    showMessage("Initiating payment, please wait...");
+
+    const payload = { ...momoDraft, customerPhone };
+
+    const response = await fetch("/api/payments/paystack/momo/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok && shouldResumeAuthorization(data)) {
+      const resumeReference =
+        data.reference || data.details?.data?.reference || data.details?.reference || "";
+
+      persistAuthorizationState({
+        reference: resumeReference,
+        nextAction: "pending",
+        message: data.error || data.message,
+      });
+      window.location.href = "/pos/momo/authorize";
+      return;
+    }
+
+    if (!response.ok) {
+      showMessage(data.error || "Unable to start mobile money payment.", true);
+      startBtn.disabled = false;
+      startBtn.textContent = "Start Payment";
+      return;
+    }
+
+    momoDraft.customerPhone = customerPhone;
+    sessionStorage.setItem("momoCheckoutDraft", JSON.stringify(momoDraft));
+
+    if (data.nextAction === "success") {
+      sessionStorage.removeItem("momoCheckoutDraft");
+      sessionStorage.removeItem("momoAuthorizationState");
+      window.location.href = data.redirectUrl;
+      return;
+    }
+
+    persistAuthorizationState(data);
+    window.location.href = "/pos/momo/authorize";
+  }
+
+  loadDraft();
+</script>
+
+<%- include('../partials/footer') %>

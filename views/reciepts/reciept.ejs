@@ -1,0 +1,44 @@
+<%- include('../partials/header', { title: "Receipt" }) %>
+<%- include('../partials/sidebar') %>
+
+<div class="main">
+  <%- include('../partials/navbar', { pageTitle }) %>
+
+  <div class="dashboard">
+    <div class="card receipt-card">
+      <h2>Receipt</h2>
+      <p><strong>Receipt No:</strong> <%= receipt.receiptNumber %></p>
+      <p><strong>Date:</strong> <%= receipt.createdAt %></p>
+      <p><strong>Customer:</strong> <%= receipt.customerName %></p>
+      <p><strong>Cashier:</strong> <%= receipt.cashierName %></p>
+      <p><strong>Payment:</strong> <%= receipt.paymentMethod %></p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% receipt.items.forEach((item) => { %>
+            <tr>
+              <td><%= item.name %></td>
+              <td><%= item.quantity %></td>
+              <td>GHS <%= Number(item.lineTotal).toFixed(2) %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+
+      <p>Gross Total: GHS <%= Number(receipt.grossTotal).toFixed(2) %></p>
+      <p>Discount: GHS <%= Number(receipt.discountAmount).toFixed(2) %></p>
+      <h3>Total: GHS <%= Number(receipt.subtotal).toFixed(2) %></h3>
+      <p>Paid: GHS <%= Number(receipt.amountPaid).toFixed(2) %></p>
+      <p>Change: GHS <%= Number(receipt.change).toFixed(2) %></p>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

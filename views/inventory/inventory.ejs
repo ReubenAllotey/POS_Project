@@ -1,0 +1,156 @@
+ <%- include('../partials/header') %> <%- include('../partials/sidebar') %>
+ 
+ 
+ <div class="main">
+        <%- include('../partials/navbar', { pageTitle }) %>
+        <h2>Inventory</h2>
+
+        <div class="toolbar">
+          <input id="searchInput" placeholder="Search product" />
+
+          <button onclick="searchProduct()">Search</button>
+
+          <button class="add-btn" onclick="openModal()">+ Restock</button>
+        </div>
+
+        <p id="pageMessage" class="page-message"></p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Product</th>
+              <th>Stock</th>
+
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+
+          <tbody id="inventoryTable"></tbody>
+        </table>
+      </div>
+
+    <!-- MODAL -->
+
+    <div class="modal" id="modal">
+      <div class="modal-box">
+        <h3>Restock Product</h3>
+
+        <input type="text" id="productName" placeholder="product Name">
+        <input id="productId" placeholder="Product ID" />
+        <input id="quantity" placeholder="Quantity to add" />
+
+       <div class="invent-btn">
+         <button onclick="restock()" class="save-btn">Save</button>
+        <button onclick = "cancel()" class="cancel-btn">cancel</button>
+       </div>
+      </div>
+    </div>
+
+    <script>
+      let inventory = <%- JSON.stringify(inventory) %> ;
+      const pageMessage = document.getElementById("pageMessage");
+
+      function showMessage(message, isError = false) {
+        pageMessage.textContent = message;
+        pageMessage.className = isError ? "page-message error" : "page-message success";
+      }
+
+      function openModal() {
+        document.getElementById("modal").style.display = "flex";
+      }
+
+      function closeModal() {
+        document.getElementById("modal").style.display = "none";
+      }
+
+      /* RESTOCK */
+
+      async function restock() {
+        const id = parseInt(document.getElementById("productId").value);
+        const qty = parseInt(document.getElementById("quantity").value);
+
+        const response = await fetch("/api/inventory/restock", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId: id, quantity: qty }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          showMessage(data.error || "Unable to restock product.", true);
+          return;
+        }
+
+        inventory = inventory.map((product) => (product.id === data.id ? data : product));
+        renderInventory();
+        closeModal();
+        showMessage("Stock updated successfully.");
+      }
+
+      /* RENDER */
+
+      function renderInventory(list = inventory) {
+        const table = document.getElementById("inventoryTable");
+
+        table.innerHTML = "";
+
+        list.forEach((p) => {
+          let status =
+            p.stock < 10
+              ? "<span class='low'>Low Stock</span>"
+              : "<span class='ok'>In Stock</span>";
+
+          table.innerHTML += `
+
+
+        
+
+<tr>
+<td>${p.id}</td>
+<td>${p.name}</td>
+<td>${p.stock}</td>
+<td>${status}</td>
+
+<td>
+<button onclick="quickAdd(${p.id})" class="quick-btn">+10</button>
+</td>
+</tr>
+
+`;
+        });
+      }
+      /* QUICK RESTOCK */
+
+      function quickAdd(id) {
+        document.getElementById("productId").value = id;
+        document.getElementById("quantity").value = 10;
+        restock();
+      }
+
+      renderInventory();
+
+      //   search item
+
+      function searchProduct() {
+        const keyword = document
+          .getElementById("searchInput")
+          .value.toLowerCase();
+
+        const filtered = inventory.filter((p) =>
+          p.name.toLowerCase().includes(keyword),
+        );
+
+        renderInventory(filtered);
+      }
+
+      // cancel restock 
+      function cancel() {
+    window.history.back();
+  }
+    </script>
+
+
+
+<%- include('../partials/footer') %>

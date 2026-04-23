@@ -1,0 +1,210 @@
+<%- include('../partials/header') %> <%- include('../partials/sidebar') %>
+
+<div class="main">
+  <%- include('../partials/navbar', { pageTitle }) %>
+  <h2>Customers</h2>
+
+  <div class="toolbar">
+    <input id="searchInput" placeholder="Search customers" />
+    <button onclick="searchCustomers()">Search</button>
+
+    <button class="register-btn" onclick="openModal()">
+      + Register Customer
+    </button>
+  </div>
+
+  <p id="pageMessage" class="page-message"></p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Phone</th>
+        <th>Email</th>
+        <th>Address</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+
+    <tbody id="customerTable"></tbody>
+  </table>
+</div>
+
+<!-- MODAL -->
+
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <h3 id="modalTitle">Register Customer</h3>
+
+    <input id="name" placeholder="Customer Name" />
+    <input id="phone" placeholder="Phone" />
+    <input id="email" placeholder="Email" />
+    <input id="address" placeholder="Address" />
+
+    <div class="modal-actions">
+      <button onclick="closeModal()" class="cancel-btn">Cancel</button>
+      <button onclick="saveCustomer()" class="save-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let customers = <%- JSON.stringify(customers) %>;
+  let editId = null;
+  const pageMessage = document.getElementById("pageMessage");
+
+  function showMessage(message, isError = false) {
+    pageMessage.textContent = message;
+    pageMessage.className = isError ? "page-message error" : "page-message success";
+  }
+
+  function openModal() {
+    document.getElementById("modal").style.display = "flex";
+    document.getElementById("modalTitle").innerText = editId ? "Edit Customer" : "Register Customer";
+  }
+
+  function closeModal() {
+    document.getElementById("modal").style.display = "none";
+    resetForm();
+    editId = null;
+    document.getElementById("modalTitle").innerText = "Register Customer";
+  }
+
+  /* SAVE + EDIT */
+
+  async function saveCustomer() {
+    const name = document.getElementById("name").value;
+    const phone = document.getElementById("phone").value;
+    const email = document.getElementById("email").value;
+    const address = document.getElementById("address").value;
+
+    if (!name || !phone) {
+      showMessage("Name and phone are required.", true);
+      return;
+    }
+
+    const url = editId ? `/api/customers/${editId}` : "/api/customers";
+    const method = editId ? "PUT" : "POST";
+    const response = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, phone, email, address }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      showMessage(data.error || "Unable to save customer.", true);
+      return;
+    }
+
+    if (editId) {
+      customers = customers.map((customer) => (customer.id === editId ? data : customer));
+      showMessage("Customer updated successfully.");
+    } else {
+      customers.push(data);
+      showMessage("Customer created successfully.");
+    }
+
+    renderCustomers();
+    resetForm();
+    closeModal();
+  }
+
+  /* EDIT */
+
+  function editCustomer(customerId) {
+    const c = customers.find((x) => x.id === customerId);
+
+    document.getElementById("name").value = c.name;
+    document.getElementById("phone").value = c.phone;
+    document.getElementById("email").value = c.email;
+    document.getElementById("address").value = c.address;
+
+    editId = customerId;
+
+    document.getElementById("modalTitle").innerText = "Edit Customer";
+
+    openModal();
+  }
+
+  /* DELETE */
+
+  async function deleteCustomer(customerId) {
+    if (!confirm("Delete this customer?")) return;
+
+    const response = await fetch(`/api/customers/${customerId}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      showMessage(data.error || "Unable to delete customer.", true);
+      return;
+    }
+
+    customers = customers.filter((c) => c.id !== customerId);
+
+    renderCustomers();
+    showMessage("Customer deleted.");
+  }
+
+  /* RESET */
+
+  function resetForm() {
+    document.getElementById("name").value = "";
+    document.getElementById("phone").value = "";
+    document.getElementById("email").value = "";
+    document.getElementById("address").value = "";
+  }
+
+  /* RENDER */
+
+  function renderCustomers(list = customers) {
+    const table = document.getElementById("customerTable");
+
+    table.innerHTML = "";
+
+    list.forEach((c) => {
+      table.innerHTML += `
+
+<tr>
+
+<td>${c.id}</td>
+<td>${c.name}</td>
+<td>${c.phone}</td>
+<td>${c.email}</td>
+<td>${c.address}</td>
+
+<td>
+<button onclick="editCustomer(${c.id})" class="edit-btn">Edit</button>
+<button onclick="deleteCustomer(${c.id})" class="delete-btn">Delete</button>
+</td>
+
+</tr>
+
+`;
+    });
+  }
+
+  function searchCustomers() {
+    const keyword = document.getElementById("searchInput").value.toLowerCase();
+
+    if (!keyword) {
+      renderCustomers();
+      return;
+    }
+
+    const filtered = customers.filter((customer) =>
+      [customer.name, customer.phone, customer.email]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(keyword)),
+    );
+
+    renderCustomers(filtered);
+  }
+
+  renderCustomers();
+</script>
+
+<%- include('../partials/footer') %>

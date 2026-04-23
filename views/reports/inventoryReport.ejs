@@ -1,0 +1,93 @@
+<%- include('../partials/header', { title: "Inventory Report" }) %>
+<%- include('../partials/sidebar') %>
+
+<div class="main">
+  <%- include('../partials/navbar', { pageTitle }) %>
+  <h2>Inventory Report</h2>
+
+  <div class="toolbar">
+    <input id="searchInput" placeholder="Search product" />
+    <button onclick="searchReport()">Search</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Product</th>
+        <th>Stock</th>
+        <th>Cost Price</th>
+        <th>Selling Price</th>
+        <th>Total Cost Value</th>
+        <th>Total Sales Value</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+
+    <tbody id="reportTable"></tbody>
+  </table>
+</div>
+
+<script>
+let products = <%- JSON.stringify(products) %>;
+
+/* RENDER REPORT */
+
+function renderReport(list = products){
+
+const table = document.getElementById("reportTable");
+
+table.innerHTML = "";
+
+list.forEach(p => {
+
+const totalCost = p.stock * p.cost;
+const totalSales = p.stock * p.price;
+
+let status = p.stock < 10
+? "<span style='color:red'>Low Stock</span>"
+: "<span style='color:green'>In Stock</span>";
+
+table.innerHTML += `
+<tr>
+<td>${p.id}</td>
+<td>${p.name}</td>
+<td>${p.stock}</td>
+<td>GHS ${p.cost}</td>
+<td>GHS ${p.price}</td>
+<td>GHS ${totalCost}</td>
+<td>GHS ${totalSales}</td>
+<td>${status}</td>
+</tr>
+`;
+
+});
+
+}
+
+/* SEARCH */
+
+function searchReport(){
+
+const keyword = document.getElementById("searchInput").value.toLowerCase();
+
+if(keyword === ""){
+renderReport();
+return;
+}
+
+const filtered = products.filter(p =>
+p.name.toLowerCase().includes(keyword)
+);
+
+renderReport(filtered);
+
+}
+
+/* INIT */
+
+renderReport();
+
+</script>
+
+<%- include('../partials/footer') %>

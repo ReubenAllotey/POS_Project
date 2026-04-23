@@ -1,0 +1,192 @@
+<%- include('../partials/header', { title: "Users" }) %>
+<%- include('../partials/sidebar') %>
+
+<div class="main">
+  <%- include('../partials/navbar', { pageTitle }) %>
+  <h2>User Management</h2>
+
+  <div class="toolbar">
+    <input id="searchInput" placeholder="Search users" />
+    <button onclick="searchUsers()">Search</button>
+    <button class="add-btn" onclick="openModal()">+ Add User</button>
+  </div>
+
+  <p id="pageMessage" class="page-message"></p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Fullname</th>
+        <th>Role</th>
+        <th>Status</th>
+        <th>Email</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="usersTable"></tbody>
+  </table>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <h3>Add User</h3>
+    <input id="name" placeholder="Full Name" />
+    <input id="email" type="email" placeholder="Email" />
+
+    <select id="role">
+      <option value="cashier">Cashier</option>
+      <option value="manager">Manager</option>
+      <option value="admin">Admin</option>
+    </select>
+
+    <input id="password" type="password" placeholder="Password" />
+
+    <div class="modal-actions">
+      <button onclick="closeModal()" class="cancel-btn">Cancel</button>
+      <button onclick="saveUser()" class="save-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let users = <%- JSON.stringify(users) %>;
+  const pageMessage = document.getElementById("pageMessage");
+
+  function showMessage(message, isError = false) {
+    pageMessage.textContent = message;
+    pageMessage.className = isError ? "page-message error" : "page-message success";
+  }
+
+  function openModal() {
+    document.getElementById("modal").style.display = "flex";
+  }
+
+  function closeModal() {
+    document.getElementById("modal").style.display = "none";
+    resetForm();
+  }
+
+  function resetForm() {
+    document.getElementById("name").value = "";
+    document.getElementById("email").value = "";
+    document.getElementById("role").value = "cashier";
+    document.getElementById("password").value = "";
+  }
+
+  async function saveUser() {
+    const name = document.getElementById("name").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const role = document.getElementById("role").value;
+    const password = document.getElementById("password").value;
+
+    if (!name || !email || !role || !password) {
+      showMessage("Please fill in all user fields.", true);
+      return;
+    }
+
+    const response = await fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, role, password }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      showMessage(data.error || "Unable to create user.", true);
+      return;
+    }
+
+    users.push(data);
+    renderUsers();
+    closeModal();
+    showMessage("User added successfully.");
+  }
+
+  async function toggleStatus(userId) {
+    const user = users.find((item) => item.id === userId);
+    const nextStatus = !user.isActive;
+
+    const response = await fetch(`/api/users/${userId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive: nextStatus }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      showMessage(data.error || "Unable to update status.", true);
+      return;
+    }
+
+    users = users.map((item) => (item.id === userId ? data : item));
+    renderUsers();
+    showMessage("User status updated.");
+  }
+
+  async function deleteUser(userId) {
+    if (!confirm("Delete this user?")) return;
+
+    const response = await fetch(`/api/users/${userId}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      showMessage(data.error || "Unable to delete user.", true);
+      return;
+    }
+
+    users = users.filter((user) => user.id !== userId);
+    renderUsers();
+    showMessage("User deleted.");
+  }
+
+  function renderUsers(list = users) {
+    const table = document.getElementById("usersTable");
+    table.innerHTML = "";
+
+    list.forEach((user) => {
+      const status = user.isActive
+        ? "<span class='active'>Active</span>"
+        : "<span class='inactive'>Inactive</span>";
+
+      table.innerHTML += `
+        <tr>
+          <td>${user.id}</td>
+          <td>${user.name}</td>
+          <td>${user.role}</td>
+          <td>${status}</td>
+          <td>${user.email}</td>
+          <td>
+            <button onclick="toggleStatus(${user.id})" class="edit-btn">
+              ${user.isActive ? "Disable" : "Enable"}
+            </button>
+            <button onclick="deleteUser(${user.id})" class="delete-btn">Delete</button>
+          </td>
+        </tr>
+      `;
+    });
+  }
+
+  function searchUsers() {
+    const keyword = document.getElementById("searchInput").value.toLowerCase();
+
+    if (!keyword) {
+      renderUsers();
+      return;
+    }
+
+    const filtered = users.filter((user) =>
+      [user.name, user.email, user.role]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(keyword)),
+    );
+
+    renderUsers(filtered);
+  }
+
+  renderUsers();
+</script>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,22 @@
+{
+  "name": "pos",
+  "version": "1.0.0",
+  "description": "point of sales systen ",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "servers/server.js",
+  "scripts": {
+    "start": "node --env-file=.env servers/server.js",
+    "dev": "node --env-file=.env --watch servers/server.js",
+    "test": "echo \"No tests configured yet\""
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "body-parser": "^2.2.2",
+    "ejs": "^5.0.1",
+    "express": "^5.2.1",
+    "path": "^0.12.7",
+    "pg": "^8.20.0"
+  }
+}

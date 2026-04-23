@@ -1,0 +1,107 @@
+<%- include('../partials/header',{title:"Dashboard"}) %>
+
+<%- include('../partials/sidebar') %>
+
+<div class="main">
+
+<%- include('../partials/navbar', { pageTitle }) %>
+
+<div class="dashboard">
+
+<div class="stats">
+
+<div class="card">
+<h4>Today's Revenue</h4>
+<p>GHS <%= Number(stats.todayRevenue).toFixed(2) %></p>
+<small><%= stats.todayTransactions %> transactions</small>
+</div>
+
+<div class="card">
+<h4>Today's Profit</h4>
+<p>GHS <%= Number(stats.todayProfit).toFixed(2) %></p>
+
+</div>
+
+<div class="card">
+<h4>Low Stock Items</h4>
+<p><%= stats.lowStockItems %></p>
+<small>Need restocking</small>
+</div>
+
+<div class="card">
+<h4>Total Customers</h4>
+<p><%= stats.totalCustomers %></p>
+<small>Registered customers</small>
+</div>
+
+</div>
+
+<div class="second-row">
+
+<div class="card">
+<h4>This Week</h4>
+<p>GHS <%= Number(stats.weekRevenue).toFixed(2) %></p>
+</div>
+
+<div class="card">
+<h4>This Month</h4>
+<p>GHS <%= Number(stats.monthRevenue).toFixed(2) %></p>
+</div>
+
+<div class="card">
+<h4>Total Products</h4>
+<p><%= stats.totalProducts %></p>
+</div>
+
+</div>
+
+<div class="quick-actions">
+
+<h3>Quick Actions</h3>
+
+<button onclick="window.location.href='/pos'" class="quick-btn-newsale">New Sale</button>
+<button onclick="window.location.href='/products'" class="quick-btn-product">Add Product</button>
+<button onclick="window.location.href='/reports/sales'" class="quick-btn-report">View Reports</button>
+<button onclick="window.location.href='/inventory'" class="quick-btn-inventory">Inventory</button>
+
+</div>
+
+<div class="report-grid">
+  <div class="card report-card">
+    <h4>Recent Sales</h4>
+    <% if (recentSales.length === 0) { %>
+      <p>No sales yet.</p>
+    <% } else { %>
+      <ul class="report-list">
+        <% recentSales.forEach((sale) => { %>
+          <li>
+            <strong><%= sale.receiptNumber %></strong>
+            <span>GHS <%= Number(sale.subtotal).toFixed(2) %></span>
+          </li>
+        <% }) %>
+      </ul>
+    <% } %>
+  </div>
+
+  <div class="card report-card">
+    <h4>Low Stock</h4>
+    <% if (lowStockProducts.length === 0) { %>
+      <p>Everything is stocked well.</p>
+    <% } else { %>
+      <ul class="report-list">
+        <% lowStockProducts.forEach((product) => { %>
+          <li>
+            <strong><%= product.name %></strong>
+            <span><%= product.stock %> left</span>
+          </li>
+        <% }) %>
+      </ul>
+    <% } %>
+  </div>
+</div>
+
+</div>
+
+</div>
+
+<%- include('../partials/footer') %>

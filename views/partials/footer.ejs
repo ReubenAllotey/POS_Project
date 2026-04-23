@@ -1,0 +1,14 @@
+<% const shellLayout = typeof showShell === "undefined" ? true : showShell; %>
+<% if (shellLayout) { %>
+  </div>
+<% } %>
+
+<script>
+  const dateNode = document.getElementById("date");
+  if (dateNode) {
+    dateNode.innerText = new Date().toLocaleString();
+  }
+</script>
+
+</body>
+</html>

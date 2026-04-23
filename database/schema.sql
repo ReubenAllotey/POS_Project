@@ -1,0 +1,220 @@
+-- CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- CREATE OR REPLACE FUNCTION set_updated_at()
+-- RETURNS TRIGGER AS $$
+-- BEGIN
+--   NEW.updated_at = NOW();
+--   RETURN NEW;
+-- END;
+-- $$ LANGUAGE plpgsql;
+
+-- CREATE TABLE IF NOT EXISTS users (
+--   id BIGSERIAL PRIMARY KEY,
+--   name VARCHAR(120) NOT NULL,
+--   email VARCHAR(160) NOT NULL UNIQUE,
+--   password_hash TEXT NOT NULL,
+--   role VARCHAR(20) NOT NULL DEFAULT 'cashier',
+--   is_active BOOLEAN NOT NULL DEFAULT TRUE,
+--   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   CONSTRAINT users_role_check CHECK (role IN ('admin', 'manager', 'cashier'))
+-- );
+
+-- CREATE TABLE IF NOT EXISTS customers (
+--   id BIGSERIAL PRIMARY KEY,
+--   name VARCHAR(120) NOT NULL,
+--   phone VARCHAR(30) NOT NULL,
+--   email VARCHAR(160),
+--   address TEXT,
+--   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- );
+
+-- CREATE TABLE IF NOT EXISTS products (
+--   id BIGSERIAL PRIMARY KEY,
+--   name VARCHAR(160) NOT NULL,
+--   category VARCHAR(80) NOT NULL DEFAULT 'General',
+--   price NUMERIC(12, 2) NOT NULL,
+--   cost NUMERIC(12, 2) NOT NULL DEFAULT 0,
+--   stock INTEGER NOT NULL DEFAULT 0,
+--   barcode VARCHAR(80) NOT NULL UNIQUE,
+--   is_active BOOLEAN NOT NULL DEFAULT TRUE,
+--   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   CONSTRAINT products_price_check CHECK (price >= 0),
+--   CONSTRAINT products_cost_check CHECK (cost >= 0),
+--   CONSTRAINT products_stock_check CHECK (stock >= 0)
+-- );
+
+-- CREATE TABLE IF NOT EXISTS sales (
+--   id BIGSERIAL PRIMARY KEY,
+--   receipt_number VARCHAR(40) NOT NULL UNIQUE,
+--   customer_id BIGINT REFERENCES customers(id) ON DELETE SET NULL,
+--   cashier_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+--   payment_method VARCHAR(30) NOT NULL DEFAULT 'cash',
+--   gross_total NUMERIC(12, 2) NOT NULL DEFAULT 0,
+--   discount_amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+--   subtotal NUMERIC(12, 2) NOT NULL,
+--   amount_paid NUMERIC(12, 2) NOT NULL,
+--   change NUMERIC(12, 2) NOT NULL DEFAULT 0,
+--   profit NUMERIC(12, 2) NOT NULL DEFAULT 0,
+--   paystack_reference VARCHAR(120),
+--   paystack_transaction_id VARCHAR(80),
+--   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   CONSTRAINT sales_payment_method_check CHECK (
+--     payment_method IN ('cash', 'card', 'mobile-money')
+--   ),
+--   CONSTRAINT sales_gross_total_check CHECK (gross_total >= 0),
+--   CONSTRAINT sales_discount_amount_check CHECK (discount_amount >= 0),
+--   CONSTRAINT sales_subtotal_check CHECK (subtotal >= 0),
+--   CONSTRAINT sales_amount_paid_check CHECK (amount_paid >= 0),
+--   CONSTRAINT sales_change_check CHECK (change >= 0)
+-- );
+
+-- ALTER TABLE sales ADD COLUMN IF NOT EXISTS gross_total NUMERIC(12, 2) NOT NULL DEFAULT 0;
+-- ALTER TABLE sales ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(12, 2) NOT NULL DEFAULT 0;
+-- ALTER TABLE sales ADD COLUMN IF NOT EXISTS paystack_reference VARCHAR(120);
+-- ALTER TABLE sales ADD COLUMN IF NOT EXISTS paystack_transaction_id VARCHAR(80);
+-- ALTER TABLE sales DROP CONSTRAINT IF EXISTS sales_profit_check;
+-- UPDATE sales SET gross_total = subtotal WHERE gross_total = 0;
+
+-- CREATE TABLE IF NOT EXISTS sale_items (
+--   id BIGSERIAL PRIMARY KEY,
+--   sale_id BIGINT NOT NULL REFERENCES sales(id) ON DELETE CASCADE,
+--   product_id BIGINT NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
+--   product_name VARCHAR(160) NOT NULL,
+--   barcode VARCHAR(80),
+--   quantity INTEGER NOT NULL,
+--   unit_price NUMERIC(12, 2) NOT NULL,
+--   unit_cost NUMERIC(12, 2) NOT NULL DEFAULT 0,
+--   line_total NUMERIC(12, 2) NOT NULL,
+--   cost_total NUMERIC(12, 2) NOT NULL DEFAULT 0,
+--   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   CONSTRAINT sale_items_quantity_check CHECK (quantity > 0),
+--   CONSTRAINT sale_items_unit_price_check CHECK (unit_price >= 0),
+--   CONSTRAINT sale_items_unit_cost_check CHECK (unit_cost >= 0),
+--   CONSTRAINT sale_items_line_total_check CHECK (line_total >= 0),
+--   CONSTRAINT sale_items_cost_total_check CHECK (cost_total >= 0)
+-- );
+
+-- CREATE TABLE IF NOT EXISTS inventory_movements (
+--   id BIGSERIAL PRIMARY KEY,
+--   product_id BIGINT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+--   movement_type VARCHAR(20) NOT NULL,
+--   quantity INTEGER NOT NULL,
+--   notes TEXT,
+--   reference_sale_id BIGINT REFERENCES sales(id) ON DELETE SET NULL,
+--   created_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+--   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   CONSTRAINT inventory_movements_type_check CHECK (
+--     movement_type IN ('opening', 'restock', 'sale', 'adjustment')
+--   )
+-- );
+
+-- CREATE TABLE IF NOT EXISTS pending_payments (
+--   id BIGSERIAL PRIMARY KEY,
+--   reference VARCHAR(120) NOT NULL UNIQUE,
+--   payment_method VARCHAR(30) NOT NULL,
+--   checkout_amount NUMERIC(12, 2) NOT NULL,
+--   customer_email VARCHAR(160),
+--   customer_phone VARCHAR(30),
+--   payload JSONB NOT NULL,
+--   status VARCHAR(20) NOT NULL DEFAULT 'initiated',
+--   paystack_access_code VARCHAR(120),
+--   paystack_transaction_id VARCHAR(80),
+--   sale_id BIGINT REFERENCES sales(id) ON DELETE SET NULL,
+--   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+--   CONSTRAINT pending_payments_status_check CHECK (
+--     status IN ('initiated', 'completed', 'failed')
+--   )
+-- );
+
+-- DROP VIEW IF EXISTS sales_report_view;
+-- DROP VIEW IF EXISTS inventory_report_view;
+-- DROP VIEW IF EXISTS inventory_view;
+
+-- CREATE VIEW inventory_view AS
+-- SELECT
+--   p.id,
+--   p.name AS product,
+--   p.stock,
+--   CASE
+--     WHEN p.stock < 10 THEN 'Low Stock'
+--     ELSE 'In Stock'
+--   END AS status
+-- FROM products p
+-- WHERE p.is_active = TRUE;
+
+-- CREATE VIEW sales_report_view AS
+-- SELECT
+--   s.id,
+--   s.receipt_number AS receipt,
+--   s.created_at AS sale_date,
+--   COALESCE(SUM(si.quantity), 0) AS items,
+--   s.payment_method AS payment,
+--   s.gross_total,
+--   s.discount_amount,
+--   s.subtotal AS total,
+--   s.profit
+-- FROM sales s
+-- LEFT JOIN sale_items si ON si.sale_id = s.id
+-- GROUP BY
+--   s.id, s.receipt_number, s.created_at, s.payment_method,
+--   s.gross_total, s.discount_amount, s.subtotal, s.profit;
+
+-- CREATE VIEW inventory_report_view AS
+-- SELECT
+--   p.id,
+--   p.name AS product,
+--   p.stock,
+--   p.cost AS cost_price,
+--   p.price AS selling_price,
+--   (p.stock * p.cost)::NUMERIC(12, 2) AS total_cost_value,
+--   (p.stock * p.price)::NUMERIC(12, 2) AS total_sales_value,
+--   CASE
+--     WHEN p.stock < 10 THEN 'Low Stock'
+--     ELSE 'In Stock'
+--   END AS status
+-- FROM products p
+-- WHERE p.is_active = TRUE;
+
+-- CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+-- CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
+-- CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
+-- CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
+-- CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
+-- CREATE INDEX IF NOT EXISTS idx_sales_created_at ON sales(created_at);
+-- CREATE INDEX IF NOT EXISTS idx_sales_customer_id ON sales(customer_id);
+-- CREATE INDEX IF NOT EXISTS idx_sales_cashier_id ON sales(cashier_id);
+-- CREATE UNIQUE INDEX IF NOT EXISTS idx_sales_paystack_reference_unique
+-- ON sales(paystack_reference)
+-- WHERE paystack_reference IS NOT NULL;
+-- CREATE INDEX IF NOT EXISTS idx_sale_items_sale_id ON sale_items(sale_id);
+-- CREATE INDEX IF NOT EXISTS idx_sale_items_product_id ON sale_items(product_id);
+-- CREATE INDEX IF NOT EXISTS idx_inventory_movements_product_id ON inventory_movements(product_id);
+-- CREATE INDEX IF NOT EXISTS idx_pending_payments_reference ON pending_payments(reference);
+
+-- DROP TRIGGER IF EXISTS trg_users_updated_at ON users;
+-- CREATE TRIGGER trg_users_updated_at
+-- BEFORE UPDATE ON users
+-- FOR EACH ROW
+-- EXECUTE FUNCTION set_updated_at();
+
+-- DROP TRIGGER IF EXISTS trg_customers_updated_at ON customers;
+-- CREATE TRIGGER trg_customers_updated_at
+-- BEFORE UPDATE ON customers
+-- FOR EACH ROW
+-- EXECUTE FUNCTION set_updated_at();
+
+-- DROP TRIGGER IF EXISTS trg_products_updated_at ON products;
+-- CREATE TRIGGER trg_products_updated_at
+-- BEFORE UPDATE ON products
+-- FOR EACH ROW
+-- EXECUTE FUNCTION set_updated_at();
+
+-- DROP TRIGGER IF EXISTS trg_pending_payments_updated_at ON pending_payments;
+-- CREATE TRIGGER trg_pending_payments_updated_at
+-- BEFORE UPDATE ON pending_payments
+-- FOR EACH ROW
+-- EXECUTE FUNCTION set_updated_at();

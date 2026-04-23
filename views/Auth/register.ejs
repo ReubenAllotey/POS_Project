@@ -1,0 +1,71 @@
+<%- include('../partials/header', { title: title || 'Register', showShell: false }) %>
+
+<div class="auth-container">
+  <h2>Create Account</h2>
+
+  <% if (error) { %>
+    <p class="form-error"><%= error %></p>
+  <% } %>
+
+  <form action="/auth/register" method="POST">
+    <div class="form-group">
+      <label>Full Name</label>
+      <input
+        type="text"
+        name="name"
+        placeholder="eg: Isaac Arthur"
+        value="<%= formData?.name || '' %>"
+        required
+      />
+    </div>
+
+    <div class="form-group">
+      <label>Email</label>
+      <input
+        type="email"
+        name="email"
+        placeholder="user@gmail.com"
+        value="<%= formData?.email || '' %>"
+        required
+      />
+    </div>
+
+    <div class="form-group">
+      <label>Password</label>
+      <input
+        type="password"
+        name="password"
+        placeholder="***************"
+        required
+      />
+    </div>
+
+    <div class="form-group">
+      <label>Confirm Password</label>
+      <input
+        type="password"
+        name="confirmPassword"
+        placeholder="**************"
+        required
+      />
+    </div>
+
+    <div class="form-group">
+      <label>Role</label>
+      <select name="role">
+        <option value="manager" <%= formData?.role === 'manager' ? 'selected' : '' %>>Manager</option>
+        <option value="cashier" <%= formData?.role === 'cashier' ? 'selected' : '' %>>Cashier</option>
+        <option value="admin" <%= formData?.role === 'admin' ? 'selected' : '' %>>Admin</option>
+      </select>
+    </div>
+
+    <button type="submit">Register</button>
+  </form>
+
+  <p>
+    Already have an account?
+    <a href="/auth/login">Login</a>
+  </p>
+</div>
+
+<%- include('../partials/footer', { showShell: false }) %>

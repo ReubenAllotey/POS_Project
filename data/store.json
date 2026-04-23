@@ -1,0 +1,299 @@
+{
+  "meta": {
+    "nextIds": {
+      "users": 5,
+      "products": 8,
+      "customers": 3,
+      "sales": 5
+    }
+  },
+  "users": [
+    {
+      "id": 1,
+      "name": "Test User",
+      "email": "tester1774663961@example.com",
+      "passwordHash": "$2b$10$xQyVtibflXm/JpIwaLpjZuea.nHqJAmJt7F8gTeSTx3xrpC23pIk6",
+      "role": "admin",
+      "createdAt": "2026-03-28T02:12:41.806Z"
+    },
+    {
+      "id": 2,
+      "name": "Reuben Allotey Kpakpo",
+      "email": "allotey434@gmail.com",
+      "passwordHash": "$2b$10$x3M6kPs2Bv7zMH0QFpYvfunarZkrfgtfxpoyKmS/3GU7T.wIqJVgS",
+      "role": "admin",
+      "createdAt": "2026-03-28T12:18:42.380Z"
+    },
+    {
+      "id": 3,
+      "name": "Reuben Allotey Kpakpo",
+      "email": "reubenallotey434@gmail.com",
+      "passwordHash": "$2b$10$/tseKszo.ey/IydBv2fSlu3XoTOo3mSFZvE0E2bRNOtbHNF11PSY2",
+      "role": "manager",
+      "createdAt": "2026-04-01T13:13:37.501Z"
+    },
+    {
+      "id": 4,
+      "name": "Staff 1775060307",
+      "email": "staff1775060307@example.com",
+      "passwordHash": "$2b$10$W9MHP9qPwjEjj7b6rSzTs.aCVXfMQ7C4uDDaOJRbthgbXpk.G5mZm",
+      "role": "cashier",
+      "isActive": true,
+      "createdAt": "2026-04-01T16:18:27.981Z",
+      "updatedAt": "2026-04-01T16:18:27.981Z"
+    }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "name": "Coca Cola",
+      "price": 5,
+      "cost": 3.2,
+      "stock": 21,
+      "barcode": "1001",
+      "category": "Drinks",
+      "createdAt": "2026-03-14T12:00:00.000Z",
+      "updatedAt": "2026-03-28T12:19:44.834Z"
+    },
+    {
+      "id": 2,
+      "name": "Bread",
+      "price": 8,
+      "cost": 5,
+      "stock": 17,
+      "barcode": "1002",
+      "category": "Bakery",
+      "createdAt": "2026-03-14T12:00:00.000Z",
+      "updatedAt": "2026-03-28T12:19:44.834Z"
+    },
+    {
+      "id": 3,
+      "name": "Milk",
+      "price": 12,
+      "cost": 8.5,
+      "stock": 7,
+      "barcode": "1003",
+      "category": "Dairy",
+      "createdAt": "2026-03-14T12:00:00.000Z",
+      "updatedAt": "2026-04-01T14:09:43.332Z"
+    },
+    {
+      "id": 4,
+      "name": "Rice",
+      "price": 30,
+      "cost": 23,
+      "stock": 14,
+      "barcode": "1004",
+      "category": "Groceries",
+      "createdAt": "2026-03-14T12:00:00.000Z",
+      "updatedAt": "2026-04-01T14:09:08.773Z"
+    },
+    {
+      "id": 5,
+      "name": "Sugar",
+      "price": 7,
+      "cost": 4.5,
+      "stock": 14,
+      "barcode": "1005",
+      "category": "Groceries",
+      "createdAt": "2026-03-14T12:00:00.000Z",
+      "updatedAt": "2026-03-14T12:00:00.000Z"
+    },
+    {
+      "id": 6,
+      "name": "Cooking Oil",
+      "price": 15,
+      "cost": 11,
+      "stock": 5,
+      "barcode": "1006",
+      "category": "Groceries",
+      "createdAt": "2026-03-14T12:00:00.000Z",
+      "updatedAt": "2026-04-01T14:09:43.332Z"
+    },
+    {
+      "id": 7,
+      "name": "sardine",
+      "category": "food",
+      "barcode": "1009",
+      "price": 20,
+      "cost": 18,
+      "stock": 50,
+      "createdAt": "2026-04-01T13:39:49.958Z",
+      "updatedAt": "2026-04-01T13:39:49.958Z"
+    }
+  ],
+  "customers": [
+    {
+      "id": 1,
+      "name": "Test Customer",
+      "phone": "0200000000",
+      "email": "customer@example.com",
+      "address": "Accra",
+      "createdAt": "2026-03-28T02:12:41.892Z"
+    },
+    {
+      "id": 2,
+      "name": "Joshua Allotey Kpakpo",
+      "phone": "0244027554",
+      "email": "josh@gmail.c0m",
+      "address": "ELEPHANT STREET",
+      "createdAt": "2026-03-28T12:42:32.786Z"
+    }
+  ],
+  "sales": [
+    {
+      "id": 4,
+      "receiptNumber": "RCPT-00004",
+      "createdAt": "2026-04-01T14:09:43.332Z",
+      "cashierId": 3,
+      "customerId": null,
+      "subtotal": 27,
+      "profit": 7.5,
+      "items": [
+        {
+          "productId": 3,
+          "name": "Milk",
+          "barcode": "1003",
+          "quantity": 1,
+          "unitPrice": 12,
+          "unitCost": 8.5,
+          "lineTotal": 12,
+          "costTotal": 8.5
+        },
+        {
+          "productId": 6,
+          "name": "Cooking Oil",
+          "barcode": "1006",
+          "quantity": 1,
+          "unitPrice": 15,
+          "unitCost": 11,
+          "lineTotal": 15,
+          "costTotal": 11
+        }
+      ],
+      "payment": {
+        "method": "card",
+        "amountPaid": 30,
+        "change": 3
+      }
+    },
+    {
+      "id": 3,
+      "receiptNumber": "RCPT-00003",
+      "createdAt": "2026-04-01T14:09:08.773Z",
+      "cashierId": 3,
+      "customerId": null,
+      "subtotal": 30,
+      "profit": 7,
+      "items": [
+        {
+          "productId": 4,
+          "name": "Rice",
+          "barcode": "1004",
+          "quantity": 1,
+          "unitPrice": 30,
+          "unitCost": 23,
+          "lineTotal": 30,
+          "costTotal": 23
+        }
+      ],
+      "payment": {
+        "method": "mobile-money",
+        "amountPaid": 30,
+        "change": 0
+      }
+    },
+    {
+      "id": 2,
+      "receiptNumber": "RCPT-00002",
+      "createdAt": "2026-03-28T12:19:44.834Z",
+      "cashierId": 2,
+      "customerId": null,
+      "subtotal": 70,
+      "profit": 19.3,
+      "items": [
+        {
+          "productId": 2,
+          "name": "Bread",
+          "barcode": "1002",
+          "quantity": 1,
+          "unitPrice": 8,
+          "unitCost": 5,
+          "lineTotal": 8,
+          "costTotal": 5
+        },
+        {
+          "productId": 1,
+          "name": "Coca Cola",
+          "barcode": "1001",
+          "quantity": 1,
+          "unitPrice": 5,
+          "unitCost": 3.2,
+          "lineTotal": 5,
+          "costTotal": 3.2
+        },
+        {
+          "productId": 6,
+          "name": "Cooking Oil",
+          "barcode": "1006",
+          "quantity": 1,
+          "unitPrice": 15,
+          "unitCost": 11,
+          "lineTotal": 15,
+          "costTotal": 11
+        },
+        {
+          "productId": 3,
+          "name": "Milk",
+          "barcode": "1003",
+          "quantity": 1,
+          "unitPrice": 12,
+          "unitCost": 8.5,
+          "lineTotal": 12,
+          "costTotal": 8.5
+        },
+        {
+          "productId": 4,
+          "name": "Rice",
+          "barcode": "1004",
+          "quantity": 1,
+          "unitPrice": 30,
+          "unitCost": 23,
+          "lineTotal": 30,
+          "costTotal": 23
+        }
+      ],
+      "payment": {
+        "method": "cash",
+        "amountPaid": 100,
+        "change": 30
+      }
+    },
+    {
+      "id": 1,
+      "receiptNumber": "RCPT-00001",
+      "createdAt": "2026-03-28T02:12:41.910Z",
+      "cashierId": 1,
+      "customerId": 1,
+      "subtotal": 10,
+      "profit": 3.6,
+      "items": [
+        {
+          "productId": 1,
+          "name": "Coca Cola",
+          "barcode": "1001",
+          "quantity": 2,
+          "unitPrice": 5,
+          "unitCost": 3.2,
+          "lineTotal": 10,
+          "costTotal": 6.4
+        }
+      ],
+      "payment": {
+        "method": "cash",
+        "amountPaid": 20,
+        "change": 10
+      }
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+<div class="sidebar">
+  <div class="logo">
+    <h3>EasySales</h3>
+  </div>
+
+  <% const isActive = (path) => currentPath === path || currentPath.startsWith(`${path}/`); %>
+
+  <p class="menu-title">MAIN</p>
+
+  <a class="menu-item <%= isActive('/dashboard') ? 'active' : '' %>" href="/dashboard">Dashboard</a>
+  <a class="menu-item <%= isActive('/pos') ? 'active' : '' %>" href="/pos">Point of Sale</a>
+
+  <p class="menu-title">MANAGEMENT</p>
+
+  <a class="menu-item <%= isActive('/products') ? 'active' : '' %>" href="/products">Products</a>
+  <a class="menu-item <%= isActive('/inventory') ? 'active' : '' %>" href="/inventory">Inventory</a>
+  <a class="menu-item <%= isActive('/customers') ? 'active' : '' %>" href="/customers">Customers</a>
+
+  <p class="menu-title">ADMIN</p>
+
+  <% if (currentUser && ['admin', 'manager'].includes(currentUser.role)) { %>
+    <a class="menu-item <%= isActive('/reports/sales') ? 'active' : '' %>" href="/reports/sales">Sales Report</a>
+    <a class="menu-item <%= isActive('/reports/inventory') ? 'active' : '' %>" href="/reports/inventory">Inventory Report</a>
+    <a class="menu-item <%= isActive('/users') ? 'active' : '' %>" href="/users">Users</a>
+  <% } %>
+
+  <% if (currentUser) { %>
+    <div class="sidebar-user">
+      <p><strong><%= currentUser.name %></strong></p>
+      <small><%= currentUser.role %></small>
+    </div>
+    <form action="/auth/logout" method="POST">
+      <button type="submit" class="logout-btn">Logout</button>
+    </form>
+  <% } %>
+</div>

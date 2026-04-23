@@ -1,0 +1,232 @@
+<%- include('../partials/header', { title: "Products" }) %>
+<%- include('../partials/sidebar') %>
+
+<div class="main">
+  <%- include('../partials/navbar', { pageTitle }) %>
+  <h2>Products</h2>
+
+  <div class="toolbar">
+    <input id="searchInput" placeholder="Search products" />
+
+    <button onclick="searchProduct()">Search</button>
+
+    <button class="add-btn" onclick="openModal()">+ Add Product</button>
+  </div>
+
+  <p id="pageMessage" class="page-message"></p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Product</th>
+        <th>Category</th>
+        <th>Price</th>
+        <th>Cost</th>
+        <th>Stock</th>
+        <th>Barcode</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+
+    <tbody id="productTable"></tbody>
+  </table>
+</div>
+
+<!-- MODAL -->
+
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <h3 id="modalTitle">Add Product</h3>
+
+    <input id="name" placeholder="Product Name" />
+    <input id="price" placeholder="Price" />
+    <input id="cost" placeholder="Cost Price" />
+    <input id="stock" placeholder="Quantity" />
+    <input id="barcode" placeholder="Barcode" />
+    <input id="category" placeholder="Category" />
+
+    <div class="modal-actions">
+      <button onclick="closeModal()" class="cancel-btn">Cancel</button>
+      <button onclick="saveProduct()" class="save-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let products = <%- JSON.stringify(products) %>;
+let editId = null;
+const pageMessage = document.getElementById("pageMessage");
+
+/* MODAL */
+
+function openModal() {
+  document.getElementById("modal").style.display = "flex";
+  document.getElementById("modalTitle").innerText = editId ? "Edit Product" : "Add Product";
+}
+
+function closeModal() {
+  document.getElementById("modal").style.display = "none";
+  resetForm();
+  editId = null;
+  document.getElementById("modalTitle").innerText = "Add Product";
+}
+
+function showMessage(message, isError = false) {
+  pageMessage.textContent = message;
+  pageMessage.className = isError ? "page-message error" : "page-message success";
+}
+
+/* SAVE + UPDATE */
+
+async function saveProduct() {
+  const name = document.getElementById("name").value;
+  const price = document.getElementById("price").value;
+  const cost = document.getElementById("cost").value;
+  const stock = document.getElementById("stock").value;
+  const barcode = document.getElementById("barcode").value;
+  const category = document.getElementById("category").value;
+
+  if (!name || !price || !stock || !barcode) {
+    showMessage("Please fill all required fields.", true);
+    return;
+  }
+
+  const payload = {
+    name,
+    price,
+    cost,
+    stock,
+    barcode,
+    category,
+  };
+
+  const url = editId ? `/api/products/${editId}` : "/api/products";
+  const method = editId ? "PUT" : "POST";
+
+  const response = await fetch(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    showMessage(data.error || "Unable to save product.", true);
+    return;
+  }
+
+  if (editId) {
+    products = products.map((product) => (product.id === editId ? data : product));
+    showMessage("Product updated successfully.");
+  } else {
+    products.push(data);
+    showMessage("Product created successfully.");
+  }
+
+  renderProducts();
+  closeModal();
+}
+
+/* EDIT */
+
+function editProduct(productId) {
+  const product = products.find((p) => p.id === productId);
+
+  document.getElementById("name").value = product.name;
+  document.getElementById("price").value = product.price;
+  document.getElementById("cost").value = product.cost;
+  document.getElementById("stock").value = product.stock;
+  document.getElementById("barcode").value = product.barcode;
+  document.getElementById("category").value = product.category || "";
+
+  editId = productId;
+
+  openModal();
+}
+
+/* DELETE */
+
+async function deleteProduct(productId) {
+  if (!confirm("Delete this product?")) return;
+
+  const response = await fetch(`/api/products/${productId}`, { method: "DELETE" });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    showMessage(data.error || "Unable to delete product.", true);
+    return;
+  }
+
+  products = products.filter((p) => p.id !== productId);
+  renderProducts();
+  showMessage("Product deleted.");
+}
+
+/* SEARCH */
+
+function searchProduct() {
+  const keyword = document.getElementById("searchInput").value.toLowerCase();
+
+  if (keyword === "") {
+    renderProducts();
+    return;
+  }
+
+  const filtered = products.filter((p) =>
+    p.name.toLowerCase().includes(keyword)
+  );
+
+  renderProducts(filtered);
+}
+
+/* RENDER */
+
+function renderProducts(list = products) {
+  const table = document.getElementById("productTable");
+
+  table.innerHTML = "";
+
+  list.forEach((p) => {
+    let status =
+      p.stock < 10
+        ? "<span class='low'>Low Stock</span>"
+        : "<span class='active'>Active</span>";
+
+    table.innerHTML += `
+<tr>
+<td>${p.id}</td>
+<td>${p.name}</td>
+<td>${p.category || "General"}</td>
+<td>GHS ${p.price}</td>
+<td>GHS ${p.cost}</td>
+<td>${p.stock}</td>
+<td>${p.barcode}</td>
+<td>${status}</td>
+<td>
+<button onclick="editProduct(${p.id})" class="edit-btn">Edit</button>
+<button onclick="deleteProduct(${p.id})" class="delete-btn">Delete</button>
+</td>
+</tr>
+`;
+  });
+}
+
+/* RESET FORM */
+
+function resetForm() {
+  document.getElementById("name").value = "";
+  document.getElementById("price").value = "";
+  document.getElementById("cost").value = "";
+  document.getElementById("stock").value = "";
+  document.getElementById("barcode").value = "";
+  document.getElementById("category").value = "";
+}
+
+/* INIT */
+
+renderProducts();
+
+</script>
+
+<%- include('../partials/footer') %>
